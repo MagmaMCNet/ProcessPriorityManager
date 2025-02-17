@@ -23,6 +23,31 @@ DWORD GetPriorityClassFromValue(int value) {
     }
 }
 
+void EnablePrivilege(const std::string& privilegeName) {
+    HANDLE token;
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) 
+        return;
+
+    LUID luid;
+    if (!LookupPrivilegeValueA(nullptr, privilegeName.c_str(), &luid)) {
+        CloseHandle(token);
+        return;
+    }
+
+    TOKEN_PRIVILEGES tp{};
+    tp.PrivilegeCount = 1;
+    tp.Privileges[0].Luid = luid;
+    tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+    if (!AdjustTokenPrivileges(token, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), nullptr, nullptr)) {
+        CloseHandle(token);
+        return;
+    }
+
+    CloseHandle(token);
+    return;
+}
+
 bool SetProcessPriority(DWORD pid, int priorityValue) {
     HANDLE process_handle = OpenProcess(PROCESS_SET_INFORMATION, FALSE, pid);
     if (!process_handle) return false;
@@ -75,8 +100,36 @@ void ApplyPriorityToAll(const std::unordered_map<std::string, int>& processPrior
         Sleep(10);
     }
 }
+bool EnableDebugPrivilege() {
+    HANDLE token;
+    TOKEN_PRIVILEGES tp;
+    LUID luid;
+
+    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token)) {
+        return false;
+    }
+
+    if (!LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &luid)) {
+        CloseHandle(token);
+        return false;
+    }
+
+    tp.PrivilegeCount = 1;
+    tp.Privileges[0].Luid = luid;
+    tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+
+    if (!AdjustTokenPrivileges(token, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), NULL, NULL)) {
+        CloseHandle(token);
+        return false;
+    }
+
+    CloseHandle(token);
+    return GetLastError() == ERROR_SUCCESS;
+}
 
 void MainService() {
+    EnablePrivilege("SeDebugPrivilege");
+    EnablePrivilege("SeIncreaseBasePriorityPrivilege");
     std::string jsonFile = "priority.json";
     time_t lastModifiedTime = GetFileModificationTime(jsonFile);
     std::unordered_map<std::string, int> processPriorityMap = ParseJsonConfig(jsonFile);
@@ -99,8 +152,11 @@ void MainService() {
 }
 int main() {
     EasyService Service(L"ProcessPriorityManager", MainService);
-    if (EasyService::IsRunningAsService())
+    if (EasyService::IsRunningAsService()) {
+        FreeConsole();
+        EnableDebugPrivilege();
         Service.Run();
+    }
     else {
         std::cout << "Running In User Space Is Not Recommended, Please Start As A Service!" << std::endl;
         MainService();
