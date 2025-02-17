@@ -1,7 +1,4 @@
 #pragma once
-#ifndef EASYSERVICE_H
-#define EASYSERVICE_H
-
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <functional>
@@ -30,4 +27,3 @@ private:
 };
 static bool IsServiceRunning(const wchar_t* serviceName);
 static bool ManageService(const wchar_t* serviceName, int Type);
-#endif // EASYSERVICE_H

@@ -65,9 +65,8 @@ DWORD WaitForExit(const std::string& programName, DWORD timeout_ms = INFINITE) {
 void EndProcess(const std::string& programName) {
     DWORD process_ids[1024], bytes_returned;
 
-    if (!EnumProcesses(process_ids, sizeof(process_ids), &bytes_returned)) {
+    if (!EnumProcesses(process_ids, sizeof(process_ids), &bytes_returned))
         return;
-    }
 
     unsigned int process_count = bytes_returned / sizeof(DWORD);
     for (unsigned int i = 0; i < process_count; i++) {
@@ -79,15 +78,11 @@ void EndProcess(const std::string& programName) {
                 HMODULE module;
                 DWORD bytes_needed;
 
-                if (EnumProcessModules(process_handle, &module, sizeof(module), &bytes_needed)) {
+                if (EnumProcessModules(process_handle, &module, sizeof(module), &bytes_needed))
                     GetModuleBaseName(process_handle, module, process_name, sizeof(process_name) / sizeof(TCHAR));
-                }
-
                 std::string proc_name = TCHARToString(process_name);
-                if (proc_name == programName) {
+                if (proc_name == programName)
                     TerminateProcess(process_handle, 0);
-                }
-
                 CloseHandle(process_handle);
             }
         }
@@ -95,8 +90,7 @@ void EndProcess(const std::string& programName) {
 }
 time_t GetFileModificationTime(const std::string& filename) {
     struct stat result;
-    if (stat(filename.c_str(), &result) == 0) {
+    if (stat(filename.c_str(), &result) == 0)
         return result.st_mtime;
-    }
     return 0;
 }
